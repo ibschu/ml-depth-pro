@@ -35,6 +35,7 @@ os.environ.update(
 class ModelOutput(BaseModel):
     npz: Path
     color_map: Path
+    focal_length: float
 
 
 def download_weights(url, dest):
@@ -81,10 +82,14 @@ class Predictor(BasePredictor):
         # Extract the depth and focal length.
         depth = prediction["depth"].detach().cpu().numpy().squeeze()
         if f_px is not None:
-            print(f"Focal length (from exif): {f_px:0.2f}")
+            focal_length = f_px
+            print(f"Focal length (from exif): {focal_length:0.2f}")
         elif prediction["focallength_px"] is not None:
-            focallength_px = prediction["focallength_px"].detach().cpu().item()
-            print(f"Estimated focal length: {focallength_px}")
+            focal_length = prediction["focallength_px"].detach().cpu().item()
+            print(f"Estimated focal length: {focal_length:0.2f}")
+        else:
+            focal_length = None
+            print("Focal length could not be determined")
 
         inverse_depth = 1 / depth
         # Visualize inverse depth instead of depth, clipped to [0.1m;250m] range for better visualization.
@@ -107,4 +112,8 @@ class Predictor(BasePredictor):
 
         PIL.Image.fromarray(color_depth).save("out.jpg", format="JPEG", quality=90)
 
-        return ModelOutput(npz=Path(out_npz), color_map=Path(out_color_map))
+        return ModelOutput(
+            npz=Path(out_npz),
+            color_map=Path(out_color_map),
+            focal_length=focal_length
+        )
